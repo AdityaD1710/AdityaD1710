@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A* Route Finder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.3s ease; /* Smooth shadow transition */
+        }
+
+        .container:hover {
+            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.2); /* Darker shadow on hover */
+        }
+
+        h1 {
+            text-align: center;
+            color: #333; /* Darker color for better contrast */
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin-top: 10px;
+            font-weight: bold; /* Make labels stand out */
+        }
+
+        input {
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc; /* Light border for inputs */
+            border-radius: 5px; /* Rounded corners for inputs */
+            transition: border-color 0.3s ease; /* Smooth border color transition */
+        }
+
+        input:focus {
+            border-color: #28a745; /* Green border on focus */
+            outline: none; /* Remove default outline */
+        }
+
+        button {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer; /* Change cursor to pointer */
+            transition: background-color 0.3s ease; /* Smooth background color transition */
+        }
+
+        button:hover {
+            background-color: #218838; /* Darker green on hover */
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e9ecef; /* Light gray background for results */
+            border-left: 5px solid #28a745; /* Green left border for emphasis */
+        }
+
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>A* Route Finder</h1>
+
+    <form id="graphForm">
+        <label for="numNodes">Number of Nodes:</label>
+        <input type="number" id="numNodes" name="numNodes" min="2" required><br><br>
+
+        <div id="nodeInputs"></div>
+
+        <button type="button" onclick="generateDistanceInputs()">Generate Distance Inputs</button><br><br>
+
+        <label for="start">Start Node:</label>
+        <input type="text" id="start" name="start" required><br><br>
+
+        <label for="goal">Goal Node:</label>
+        <input type="text" id="goal" name="goal" required><br><br>
+
+        <button type="submit">Find Route</button>
+    </form>
+
+    {% if result %}
+    <div class="result">{{ result }}</div>
+    {% endif %}
+    
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+</div>
+
+<script>
+function generateDistanceInputs() {
+    const numNodes = document.getElementById('numNodes').value;
+    const nodeInputs = document.getElementById('nodeInputs');
+    nodeInputs.innerHTML = ''; // Clear previous inputs
+
+    // Create distance inputs after specifying number of nodes
+    for (let i = 0; i < numNodes; i++) {
+        for (let j = i + 1; j < numNodes; j++) {
+            nodeInputs.innerHTML += `
+                <label for="distance_${i}_${j}">Distance from Node ${i + 1} to Node ${j + 1}:</label>
+                <input type="number" id="distance_${i}_${j}" name="distance_${i}_${j}" required><br><br>
+            `;
+        }
+    }
+}
+
+document.getElementById('graphForm').onsubmit = function(event) {
+    event.preventDefault(); // Prevent default form submission
+    const formData = new FormData(this);
+    const distances = {};
+
+    // Collect distance data
+    for (let [key, value] of formData.entries()) {
+        if (key.startsWith('distance_')) {
+            distances[key] = parseInt(value);
+        }
+    }
+
+    // Send data to server
+    fetch('/find_route', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            start: formData.get('start'),
+            goal: formData.get('goal'),
+            distances: distances,
+            numNodes: formData.get('numNodes')
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        const resultDiv = document.querySelector('.result');
+        const errorDiv = document.querySelector('.error');
+        
+        if (data.path) {
+            resultDiv.innerHTML = `Path found: ${data.path.join(' -> ')}`;
+            resultDiv.className = "result";
+            errorDiv.innerHTML = '';
+        } else if (data.error) {
+            errorDiv.innerHTML = data.error;
+            resultDiv.innerHTML = '';
+        }
+    })
+    .catch(error => console.error('Error:', error));
+};
+</script>
+</body>
+</html>
